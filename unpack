@@ -138,27 +138,50 @@ class BZIP2Classifier(StdoutDecompressClassifier):
 		header = b"BZh"
 		yield from self._bytes_findall(chunk, header)
 
-@Classifier.register
-class PKZIPClassifier(Classifier):
-	_NAME = "zip"
+class MultiFileExtractorClassifier(Classifier):
+	_SUFFIX = None
 
-	def quick_find(self, chunk):
-		header = b"PK"
-		yield from self._bytes_findall(chunk, header)
+	def _get_cmdline(self, archive_name):
+		raise NotImplementedError()
 
 	def extract(self, input_file, destination):
 		compressed_data = self._read_until_limit(input_file)
 		self._mkdir(destination)
-		with WorkDir(destination), tempfile.NamedTemporaryFile(suffix = ".zip") as zipfile:
+		with WorkDir(destination), tempfile.NamedTemporaryFile(suffix = self._SUFFIX) as zipfile:
 			zipfile.write(compressed_data)
 			zipfile.flush()
-			process = subprocess.run([ "unzip", zipfile.name ], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+			process = subprocess.run(self._get_cmdline(zipfile.name), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 			if self._args.verbose >= 3:
 				print("%s extraction (potential target %s) returned with status code %d." % (self.name, destination, process.returncode))
 		if process.returncode == 0:
 			return destination
 		else:
 			os.rmdir(destination)
+
+@Classifier.register
+class TarClassifier(MultiFileExtractorClassifier):
+	_NAME = "tar"
+	_SUFFIX = ".tar"
+
+	def quick_find(self, chunk):
+		header = b"ustar"
+		for offset in self._bytes_findall(chunk, header):
+			yield offset - 0x101
+
+	def _get_cmdline(self, archive_name):
+		return [ "tar", "-x", "-f", archive_name ]
+
+@Classifier.register
+class PKZIPClassifier(MultiFileExtractorClassifier):
+	_NAME = "zip"
+	_SUFFIX = ".zip"
+
+	def quick_find(self, chunk):
+		header = b"PK"
+		yield from self._bytes_findall(chunk, header)
+
+	def _get_cmdline(self, archive_name):
+		return [ "unzip", archive_name ]
 
 class FileUnpacker():
 	def __init__(self, args):
@@ -171,7 +194,11 @@ class FileUnpacker():
 		if os.path.isfile(filename):
 			return self.unpack(filename, destination)
 		else:
-			raise NotImplementedError("recursing through dir")
+			for (basedir, subdirs, files) in os.walk(filename):
+				for filename in files:
+					full_filename = basedir + "/" + filename
+					destination = full_filename + "_content"
+					self.unpack(full_filename, destination)
 
 	def unpack(self, filename, destination):
 		with open(filename, "rb") as f:
