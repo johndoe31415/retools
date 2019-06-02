@@ -78,22 +78,18 @@ class Classifier():
 	def get_all(cls):
 		return cls._KNOWN_CLASSIFIERS
 
-@Classifier.register
-class GZClassifier(Classifier):
-	_NAME = "gzip"
 
-	def quick_find(self, chunk):
-		header = bytes.fromhex("1f 8b")
-		yield from self._bytes_findall(chunk, header)
+class StdoutDecompressClassifier(Classifier):
+	_SUCCESS_RETURNCODES = [ 0 ]
+	_COMMANDLINE = None
 
 	def extract(self, input_file, destination):
 		compressed_data = self._read_until_limit(input_file)
-		process = subprocess.run([ "gunzip" ], stdout = subprocess.PIPE, stderr = subprocess.PIPE, input = compressed_data)
+		process = subprocess.run(self._COMMANDLINE, stdout = subprocess.PIPE, stderr = subprocess.PIPE, input = compressed_data)
 		if self._args.verbose >= 3:
 			print("%s extraction (potential target %s) returned with status code %d." % (self.name, destination, process.returncode))
 
-		if process.returncode in [ 0, 2 ]:
-			# OK or trailing garbage (also OK for us)
+		if process.returncode in self._SUCCESS_RETURNCODES:
 			decompressed_data = process.stdout
 			self._mkdir(os.path.dirname(destination))
 			with open(destination, "wb") as f:
@@ -103,8 +99,19 @@ class GZClassifier(Classifier):
 			return None
 
 @Classifier.register
-class ZLIBClassifier(Classifier):
+class GZClassifier(StdoutDecompressClassifier):
+	_NAME = "gzip"
+	_SUCCESS_RETURNCODES = [ 0, 2 ]
+	_COMMANDLINE = [ "gunzip" ]
+
+	def quick_find(self, chunk):
+		header = bytes.fromhex("1f 8b")
+		yield from self._bytes_findall(chunk, header)
+
+@Classifier.register
+class ZLIBClassifier(StdoutDecompressClassifier):
 	_NAME = "zlib"
+	_COMMANDLINE = [ "zlib-flate", "-uncompress" ]
 
 	def quick_find(self, chunk):
 		header = bytes.fromhex("78")
@@ -113,20 +120,23 @@ class ZLIBClassifier(Classifier):
 			if following in [ 0x01, 0x9c, 0xda ]:
 				yield offset
 
-	def extract(self, input_file, destination):
-		compressed_data = self._read_until_limit(input_file)
-		process = subprocess.run([ "zlib-flate", "-uncompress" ], stdout = subprocess.PIPE, stderr = subprocess.PIPE, input = compressed_data)
-		if self._args.verbose >= 3:
-			print("%s extraction (potential target %s) returned with status code %d." % (self.name, destination, process.returncode))
+@Classifier.register
+class XZClassifier(StdoutDecompressClassifier):
+	_NAME = "xz"
+	_COMMANDLINE = [ "xzcat", "--single-stream" ]
 
-		if process.returncode == 0:
-			decompressed_data = process.stdout
-			self._mkdir(os.path.dirname(destination))
-			with open(destination, "wb") as f:
-				f.write(decompressed_data)
-			return destination
-		else:
-			return None
+	def quick_find(self, chunk):
+		header = bytes.fromhex("fd 37 7a 58 5a 00")
+		yield from self._bytes_findall(chunk, header)
+
+@Classifier.register
+class BZIP2Classifier(StdoutDecompressClassifier):
+	_NAME = "bz2"
+	_COMMANDLINE = [ "bzcat", "--decompress" ]
+
+	def quick_find(self, chunk):
+		header = b"BZh"
+		yield from self._bytes_findall(chunk, header)
 
 @Classifier.register
 class PKZIPClassifier(Classifier):
@@ -149,30 +159,6 @@ class PKZIPClassifier(Classifier):
 			return destination
 		else:
 			os.rmdir(destination)
-
-@Classifier.register
-class XZClassifier(Classifier):
-	_NAME = "xz"
-
-	def quick_find(self, chunk):
-		header = bytes.fromhex("fd 37 7a 58 5a 00")
-		yield from self._bytes_findall(chunk, header)
-
-	def extract(self, input_file, destination):
-		compressed_data = self._read_until_limit(input_file)
-		process = subprocess.run([ "xzcat", "--single-stream" ], stdout = subprocess.PIPE, stderr = subprocess.PIPE, input = compressed_data)
-		if self._args.verbose >= 3:
-			print("%s extraction (potential target %s) returned with status code %d." % (self.name, destination, process.returncode))
-			print(process.stderr)
-
-		if process.returncode == 0:
-			decompressed_data = process.stdout
-			self._mkdir(os.path.dirname(destination))
-			with open(destination, "wb") as f:
-				f.write(decompressed_data)
-			return destination
-		else:
-			return None
 
 class FileUnpacker():
 	def __init__(self, args):
