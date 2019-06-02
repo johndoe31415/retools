@@ -103,6 +103,32 @@ class GZClassifier(Classifier):
 			return None
 
 @Classifier.register
+class ZLIBClassifier(Classifier):
+	_NAME = "zlib"
+
+	def quick_find(self, chunk):
+		header = bytes.fromhex("78")
+		for offset in self._bytes_findall(chunk, header):
+			following = chunk[offset + 1]
+			if following in [ 0x01, 0x9c, 0xda ]:
+				yield offset
+
+	def extract(self, input_file, destination):
+		compressed_data = self._read_until_limit(input_file)
+		process = subprocess.run([ "zlib-flate", "-uncompress" ], stdout = subprocess.PIPE, stderr = subprocess.PIPE, input = compressed_data)
+		if self._args.verbose >= 3:
+			print("%s extraction (potential target %s) returned with status code %d." % (self.name, destination, process.returncode))
+
+		if process.returncode == 0:
+			decompressed_data = process.stdout
+			self._mkdir(os.path.dirname(destination))
+			with open(destination, "wb") as f:
+				f.write(decompressed_data)
+			return destination
+		else:
+			return None
+
+@Classifier.register
 class PKZIPClassifier(Classifier):
 	_NAME = "zip"
 
@@ -123,6 +149,30 @@ class PKZIPClassifier(Classifier):
 			return destination
 		else:
 			os.rmdir(destination)
+
+@Classifier.register
+class XZClassifier(Classifier):
+	_NAME = "xz"
+
+	def quick_find(self, chunk):
+		header = bytes.fromhex("fd 37 7a 58 5a 00")
+		yield from self._bytes_findall(chunk, header)
+
+	def extract(self, input_file, destination):
+		compressed_data = self._read_until_limit(input_file)
+		process = subprocess.run([ "xzcat", "--single-stream" ], stdout = subprocess.PIPE, stderr = subprocess.PIPE, input = compressed_data)
+		if self._args.verbose >= 3:
+			print("%s extraction (potential target %s) returned with status code %d." % (self.name, destination, process.returncode))
+			print(process.stderr)
+
+		if process.returncode == 0:
+			decompressed_data = process.stdout
+			self._mkdir(os.path.dirname(destination))
+			with open(destination, "wb") as f:
+				f.write(decompressed_data)
+			return destination
+		else:
+			return None
 
 class FileUnpacker():
 	def __init__(self, args):
