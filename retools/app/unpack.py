@@ -94,15 +94,16 @@ class FileUnpacker():
 						try:
 							found_blobs.add(found_blob)
 						except IntervalConstraintException:
-							print("%s found at %#x length %d bytes, but discarded because contained/overlapping with different blob." % (classifier.name, start_offset, file_length))
+							print("%s: %s found at %#x length %d bytes, but discarded because contained/overlapping with different blob." % (filename, classifier.name, start_offset, file_length))
 							continue
 
 						if self._args.verbose >= 1:
-							print("%s found at %#x length %d bytes" % (classifier.name, start_offset, file_length))
+							print("%s: %s found at %#x length %d bytes" % (filename, classifier.name, start_offset, file_length))
 
 						# If it's not extactible, then we carve by default
 						if self._args.carve or (not classifier.contains_payload):
 							carve_destination = "%s/carved_%#010x.%s" % (destination, start_offset, classifier.name)
+							print("Carving: %s [ %#x len %#x] -> %s" % (filename, start_offset, file_length, carve_destination))
 							with contextlib.suppress(FileExistsError):
 								os.makedirs(destination)
 							f.seek(start_offset)
@@ -112,11 +113,13 @@ class FileUnpacker():
 						# If it's extractable and extraction is wanted, extract.
 						if (not self._args.noextract) and classifier.contains_payload:
 							extract_destination = "%s/payload_%#010x.%s" % (destination, start_offset, classifier.name)
+							print("Extracting: %s [ %#x len %#x] -> %s" % (filename, start_offset, file_length, extract_destination))
 							extraction_success = classifier.extract(f, start_offset, file_length, extract_destination)
 							if extraction_success and self._args.recurse:
 								recurse_into = extract_destination
 								recurse_destination = "%s/content_%#010x.%s" % (destination, start_offset, classifier.name)
 								self.unpack_all(recurse_into, recurse_destination)
+								print("Recursing %s into: %s" % (recurse_into, recurse_destination))
 
 					new_offset = base_offset + self._chunksize_bytes - self._overlap_bytes
 					f.seek(new_offset)

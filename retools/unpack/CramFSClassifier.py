@@ -19,11 +19,12 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
-from retools.unpack import Classifier, MultiFileExtractorClassifier
+from retools.unpack import Classifier, TemporaryCarveClassifier
 from retools.NamedStruct import NamedStruct
+from retools.UncramFS import UncramFS
 
 @Classifier.register
-class CramFSClassifier(MultiFileExtractorClassifier):
+class CramFSClassifier(TemporaryCarveClassifier):
 	_NAME = "cramfs"
 	_SUFFIX = ".cramfs"
 	_CramFSHeader = NamedStruct([
@@ -47,5 +48,8 @@ class CramFSClassifier(MultiFileExtractorClassifier):
 		header = self._CramFSHeader.unpack_from_file(infile)
 		return (offset, self._CramFSHeader.size + header.size)
 
-	def get_extract_cmdline(self, archive_name):
-		return [ "uncramfs", archive_name ]
+	def extract_from_temporary_carved_file(self, temp_filename, destination):
+		with open(temp_filename, "rb") as f:
+			ucfs = UncramFS(f)
+			ucfs.uncram(destination)
+		return True

@@ -167,12 +167,12 @@ class UncramFS():
 		return result
 
 	def uncram(self, target_directory):
-		for (filename, inode) in ucfs.walk_files():
+		for (filename, inode) in self.walk_files():
 			disk_file = target_directory + filename
 			with contextlib.suppress(FileExistsError):
 				os.makedirs(os.path.dirname(disk_file))
 			with open(disk_file, "wb") as f:
-				for chunk in ucfs.retrieve_chunked_file(inode):
+				for chunk in self.retrieve_chunked_file(inode):
 					f.write(chunk)
 
 if __name__ == "__main__":

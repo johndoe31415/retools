@@ -117,10 +117,10 @@ class StdoutDecompressClassifier(Classifier):
 		else:
 			return False
 
-class MultiFileExtractorClassifier(Classifier):
+class TemporaryCarveClassifier(Classifier):
 	_SUFFIX = None
 
-	def get_extract_cmdline(self, archive_name):
+	def extract_from_temporary_carved_file(self, temp_filename, destination):
 		raise NotImplementedError()
 
 	def extract(self, input_file, start_offset, file_length, destination):
@@ -129,11 +129,20 @@ class MultiFileExtractorClassifier(Classifier):
 			input_file.seek(start_offset)
 			FileTools.carve(input_file, archive_file, file_length)
 			archive_file.flush()
+			return self.extract_from_temporary_carved_file(archive_file.name, destination)
 
-			cmdline = self.get_extract_cmdline(archive_file.name)
-			process = subprocess.run(cmdline, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-			if self._args.verbose >= 3:
-				print("%s extraction (potential target %s) returned with status code %d." % (self.name, destination, process.returncode))
+class MultiFileExtractorClassifier(TemporaryCarveClassifier):
+	_SUFFIX = None
+
+	def get_extract_cmdline(self, archive_name):
+		raise NotImplementedError()
+
+	def extract_from_temporary_carved_file(self, temp_filename, destination):
+		cmdline = self.get_extract_cmdline(temp_filename)
+		process = subprocess.run(cmdline, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+		if self._args.verbose >= 3:
+			print("%s extraction (potential target %s) returned with status code %d." % (self.name, destination, process.returncode))
+
 		if process.returncode == 0:
 			return True
 		else:

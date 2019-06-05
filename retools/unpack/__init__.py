@@ -19,7 +19,7 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
-from retools.unpack.Classifier import Classifier, StdoutDecompressClassifier, MultiFileExtractorClassifier
+from retools.unpack.Classifier import Classifier, StdoutDecompressClassifier, TemporaryCarveClassifier, MultiFileExtractorClassifier
 import retools.unpack.PKZIPClassifier
 import retools.unpack.UBootClassifier
 import retools.unpack.SquashFSClassifier
