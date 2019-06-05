@@ -32,6 +32,7 @@ class Classifier():
 	_CONTAINS_PAYLOAD = True
 	_CLASSIFIER_PRIORITY = { name: cid for (cid, name) in enumerate(reversed([
 		"uboot",
+		"squashfs",
 		"cramfs",
 		"tar",
 		"zip",
@@ -81,6 +82,22 @@ class Classifier():
 		classifier_list.sort(reverse = True)
 		return [ classifier_class for (priority, name, classifier_class) in classifier_list ]
 
+	def carve_extract(self, input_file, start_offset, file_length, destination):
+		self._mkdir(os.path.dirname(destination))
+		with open(destination, "wb") as output_file:
+			input_file.seek(start_offset)
+			FileTools.carve(input_file, output_file, file_length)
+		return True
+
+	def extract(self, input_file, start_offset, file_length, destination):
+		raise NotImplementedError()
+
+	def scan(self, chunk):
+		raise NotImplementedError()
+
+	def investigate(self, infile, offset):
+		raise NotImplementedError()
+
 class StdoutDecompressClassifier(Classifier):
 	_SUCCESS_RETURNCODES = [ 0 ]
 	_COMMANDLINE = None
@@ -96,9 +113,9 @@ class StdoutDecompressClassifier(Classifier):
 			self._mkdir(os.path.dirname(destination))
 			with open(destination, "wb") as f:
 				f.write(decompressed_data)
-			return destination
+			return True
 		else:
-			return None
+			return False
 
 class MultiFileExtractorClassifier(Classifier):
 	_SUFFIX = None
@@ -118,7 +135,8 @@ class MultiFileExtractorClassifier(Classifier):
 			if self._args.verbose >= 3:
 				print("%s extraction (potential target %s) returned with status code %d." % (self.name, destination, process.returncode))
 		if process.returncode == 0:
-			return destination
+			return True
 		else:
 			with contextlib.suppress(OSError):
 				os.rmdir(destination)
+			return False

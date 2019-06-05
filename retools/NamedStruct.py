@@ -28,6 +28,10 @@ class NamedStruct(object):
 		self._struct = struct.Struct(struct_format)
 		self._collection = collections.namedtuple("Fields", [ fieldname for (fieldtype, fieldname) in fields ])
 
+	@property
+	def size(self):
+		return self._struct.size
+
 	def unpack(self, data):
 		values = self._struct.unpack(data)
 		fields = self._collection(*values)

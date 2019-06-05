@@ -102,7 +102,7 @@ class FileUnpacker():
 
 						# If it's not extactible, then we carve by default
 						if self._args.carve or (not classifier.contains_payload):
-							carve_destination = "%s/%#010x.%s" % (destination, start_offset, classifier.name)
+							carve_destination = "%s/carved_%#010x.%s" % (destination, start_offset, classifier.name)
 							with contextlib.suppress(FileExistsError):
 								os.makedirs(destination)
 							f.seek(start_offset)
@@ -111,20 +111,12 @@ class FileUnpacker():
 
 						# If it's extractable and extraction is wanted, extract.
 						if (not self._args.noextract) and classifier.contains_payload:
-							extract_destination = "%s/%#010x" % (destination, start_offset)
-							success = classifier.extract(f, start_offset, file_length, extract_destination)
-
-						#
-#						if self._args.recurse:
-
-	#						f.seek(abs_offset, os.SEEK_SET)
-	#						chunk_destination = "%s/%#x_%s" % (destination, abs_offset, classifier.name)
-	#						result = classifier.extract(f, chunk_destination)
-	#						if (result is not None) and (self._args.verbose >= 1):
-	#							print("Successfully extracted %s from %s at offset %#x" % (classifier.name, filename, abs_offset))
-	#						if (result is not None) and (self._args.recurse):
-	#							# Extraction was successful. Recurse.
-	#							self.unpack_all(result, chunk_destination + "_content")
+							extract_destination = "%s/payload_%#010x.%s" % (destination, start_offset, classifier.name)
+							extraction_success = classifier.extract(f, start_offset, file_length, extract_destination)
+							if extraction_success and self._args.recurse:
+								recurse_into = extract_destination
+								recurse_destination = "%s/content_%#010x.%s" % (destination, start_offset, classifier.name)
+								self.unpack_all(recurse_into, recurse_destination)
 
 					new_offset = base_offset + self._chunksize_bytes - self._overlap_bytes
 					f.seek(new_offset)

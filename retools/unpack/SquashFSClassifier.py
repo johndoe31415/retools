@@ -19,36 +19,44 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
-from retools.unpack import Classifier
+from retools.unpack import Classifier, MultiFileExtractorClassifier
 from retools.NamedStruct import NamedStruct
 
 @Classifier.register
-class UBootImageClassifier(Classifier):
-	_NAME = "uboot"
-	_SUFFIX = ".uboot"
-	_UBootHeader = NamedStruct([
+class SquashFSClassifier(MultiFileExtractorClassifier):
+	# TODO: Currently little endian SquashFS only
+	_NAME = "squashfs"
+	_SUFFIX = ".sqfs"
+	_SquashFSHeader = NamedStruct([
 		("L", "magic"),
-		("L", "hdr_crc"),
-		("L", "time"),
-		("L", "size"),
-		("L", "load_addr"),
-		("L", "entry_point"),
-		("L", "data_crc"),
-		("B", "os"),
-		("B", "arch"),
-		("B", "img_type"),
-		("B", "compression"),
-		("32s", "img_name"),
-	], struct_extra = ">")
+		("L", "inode_count"),
+		("l", "modification_time"),
+		("L", "block_size"),
+		("L", "fragment_entry_count"),
+		("H", "compression_id"),
+		("H", "block_log"),
+		("H", "flags"),
+		("H", "id_count"),
+		("H", "version_major"),
+		("H", "version_minor"),
+		("Q", "root_inode_ref"),
+		("Q", "bytes_used"),
+		("Q", "id_table_start"),
+		("Q", "xattr_id_table_start"),
+		("Q", "inode_table_start"),
+		("Q", "directory_table_start"),
+		("Q", "fragment_table_start"),
+		("Q", "export_table_start"),
+	], struct_extra = "<")
 
 	def scan(self, chunk):
-		header = bytes.fromhex("27 05 19 56")
+		header = bytes.fromhex("68 73 71 73")
 		yield from self._bytes_findall(chunk, header)
 
 	def investigate(self, infile, offset):
-		header = self._UBootHeader.unpack_from_file(infile)
-		return (offset, self._UBootHeader.size + header.size)
+		header = self._SquashFSHeader.unpack_from_file(infile)
+		return (offset, self._SquashFSHeader.size + header.bytes_used)
 
-	def extract(self, input_file, start_offset, file_length, destination):
-		header = self._UBootHeader.unpack_from_file(input_file, start_offset)
-		return self.carve_extract(input_file = input_file, start_offset = start_offset + self._UBootHeader.size, file_length = header.size, destination = destination)
+	def get_extract_cmdline(self, archive_name):
+		return [ "unsquashfs", archive_name ]
+
