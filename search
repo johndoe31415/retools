@@ -20,4 +20,4 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
-import retools.app.unpack
+import retools.app.search
