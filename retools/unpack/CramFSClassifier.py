@@ -19,19 +19,33 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
+from retools.unpack import Classifier, MultiFileExtractorClassifier
+from retools.NamedStruct import NamedStruct
+
 @Classifier.register
 class CramFSClassifier(MultiFileExtractorClassifier):
 	_NAME = "cramfs"
 	_SUFFIX = ".cramfs"
+	_CramFSHeader = NamedStruct([
+		("L", "magic"),
+		("L", "size"),
+		("L", "flags"),
+		("L", "future"),
+		("16s", "signature"),
+		("L", "fsid_crc"),
+		("L", "fsid_edition"),
+		("L", "fsid_blocks"),
+		("L", "fsid_files"),
+		("16s", "name"),
+	], struct_extra = "<")
 
 	def scan(self, chunk):
 		header = bytes.fromhex("45 3d cd 28")
 		yield from self._bytes_findall(chunk, header)
 
-	def extract(self, infilename, abs_offset, infile, outfilename):
-		pass
+	def investigate(self, infile, offset):
+		header = self._CramFSHeader.unpack_from_file(infile)
+		return (offset, self._CramFSHeader.size + header.size)
 
-#	def _get_cmdline(self, archive_name):
-#		print("UNCRAM")
-#		return [ "echo", archive_name ]
-#		return [ "unzip", "-n", archive_name ]
+	def get_extract_cmdline(self, archive_name):
+		return [ "uncramfs", archive_name ]

@@ -59,4 +59,3 @@ class SquashFSClassifier(MultiFileExtractorClassifier):
 
 	def get_extract_cmdline(self, archive_name):
 		return [ "unsquashfs", archive_name ]
-

@@ -23,4 +23,4 @@ from retools.unpack.Classifier import Classifier, StdoutDecompressClassifier, Mu
 import retools.unpack.PKZIPClassifier
 import retools.unpack.UBootClassifier
 import retools.unpack.SquashFSClassifier
-
+import retools.unpack.CramFSClassifier
