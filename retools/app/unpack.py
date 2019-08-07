@@ -90,18 +90,22 @@ class FileUnpacker():
 							continue
 
 						(start_offset, file_length) = match
-						found_blob = Interval.begin_length(start_offset, file_length)
-						try:
-							found_blobs.add(found_blob)
-						except IntervalConstraintException:
-							print("%s: %s found at %#x length %d bytes, but discarded because contained/overlapping with different blob." % (filename, classifier.name, start_offset, file_length))
-							continue
+						if file_length is not None:
+							found_blob = Interval.begin_length(start_offset, file_length)
+							try:
+								found_blobs.add(found_blob)
+							except IntervalConstraintException:
+								print("%s: %s found at %#x length %d bytes, but discarded because contained/overlapping with different blob." % (filename, classifier.name, start_offset, file_length))
+								continue
 
 						if self._args.verbose >= 1:
-							print("%s: %s found at %#x length %d bytes" % (filename, classifier.name, start_offset, file_length))
+							if file_length is not None:
+								print("%s: %s found at %#x length %d bytes" % (filename, classifier.name, start_offset, file_length))
+							else:
+								print("%s: %s found at %#x with indeterminate length" % (filename, classifier.name, start_offset))
 
 						# If it's not extactible, then we carve by default
-						if self._args.carve or (not classifier.contains_payload):
+						if self._args.carve or (not classifier.contains_payload) and (file_length is not None):
 							carve_destination = "%s/carved_%#010x.%s" % (destination, start_offset, classifier.name)
 							print("Carving: %s [ %#x len %#x] -> %s" % (filename, start_offset, file_length, carve_destination))
 							with contextlib.suppress(FileExistsError):
@@ -113,7 +117,11 @@ class FileUnpacker():
 						# If it's extractable and extraction is wanted, extract.
 						if (not self._args.noextract) and classifier.contains_payload:
 							extract_destination = "%s/payload_%#010x.%s" % (destination, start_offset, classifier.name)
-							print("Extracting: %s [ %#x len %#x] -> %s" % (filename, start_offset, file_length, extract_destination))
+							if file_length is not None:
+								print("Extracting: %s [ %#x len %#x] -> %s" % (filename, start_offset, file_length, extract_destination))
+							else:
+								print("Extracting: %s [ %#x len N/A] -> %s" % (filename, start_offset, extract_destination))
+							f.seek(start_offset)
 							extraction_success = classifier.extract(f, start_offset, file_length, extract_destination)
 							if extraction_success and self._args.recurse:
 								recurse_into = extract_destination

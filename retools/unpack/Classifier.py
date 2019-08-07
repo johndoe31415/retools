@@ -89,33 +89,30 @@ class Classifier():
 			FileTools.carve(input_file, output_file, file_length)
 		return True
 
-	def extract(self, input_file, start_offset, file_length, destination):
-		raise NotImplementedError()
-
 	def scan(self, chunk):
+		"""Scans a chunk and yields all offsets that could be possible matches.
+		False positives are okay, but preliminary check needs to be fast."""
 		raise NotImplementedError()
 
 	def investigate(self, infile, offset):
+		"""Investivates a file offset that was previously yielded by scan() and a file."""
+		raise NotImplementedError()
+
+	def extract(self, input_file, start_offset, file_length, destination):
 		raise NotImplementedError()
 
 class StdoutDecompressClassifier(Classifier):
 	_SUCCESS_RETURNCODES = [ 0 ]
 	_COMMANDLINE = None
 
-	def extract(self, input_file, destination):
-		compressed_data = self._read_until_limit(input_file)
-		process = subprocess.run(self._COMMANDLINE, stdout = subprocess.PIPE, stderr = subprocess.PIPE, input = compressed_data)
-		if self._args.verbose >= 3:
-			print("%s extraction (potential target %s) returned with status code %d." % (self.name, destination, process.returncode))
-
-		if process.returncode in self._SUCCESS_RETURNCODES:
-			decompressed_data = process.stdout
-			self._mkdir(os.path.dirname(destination))
-			with open(destination, "wb") as f:
-				f.write(decompressed_data)
-			return True
-		else:
-			return False
+	def extract(self, input_file, start_offset, file_length, destination):
+		self._mkdir(os.path.dirname(destination))
+		with open(destination, "wb") as outfile:
+			process = subprocess.run(self._COMMANDLINE, stdout = outfile, stderr = subprocess.DEVNULL, stdin = input_file)
+			success = process.returncode in self._SUCCESS_RETURNCODES
+			if self._args.verbose >= 3:
+				print("%s extraction (potential target %s) returned %s (status code %d)." % (self.name, destination, "successfully" if success else "unsuccessfully", process.returncode))
+			return success
 
 class TemporaryCarveClassifier(Classifier):
 	_SUFFIX = None

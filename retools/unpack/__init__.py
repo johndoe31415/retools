@@ -24,3 +24,4 @@ import retools.unpack.PKZIPClassifier
 import retools.unpack.UBootClassifier
 import retools.unpack.SquashFSClassifier
 import retools.unpack.CramFSClassifier
+import retools.unpack.GZClassifier

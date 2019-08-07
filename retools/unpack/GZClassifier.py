@@ -19,6 +19,10 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
+import subprocess
+import gzip
+from retools.unpack import Classifier, StdoutDecompressClassifier
+
 @Classifier.register
 class GZClassifier(StdoutDecompressClassifier):
 	_NAME = "gzip"
@@ -28,3 +32,12 @@ class GZClassifier(StdoutDecompressClassifier):
 	def scan(self, chunk):
 		header = bytes.fromhex("1f 8b")
 		yield from self._bytes_findall(chunk, header)
+
+	def investigate(self, infile, offset):
+		proc = subprocess.Popen([ "gunzip", "-l" ], stdin = infile, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+		(stdout, stderr) = proc.communicate()
+		if proc.returncode != 0:
+			# No gzip data found
+			return None
+		else:
+			return (offset, None)
