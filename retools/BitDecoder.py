@@ -120,3 +120,6 @@ class BitDecoder(object):
 			f.seek(at_offset)
 		data = f.read(self._struct.size)
 		return self.unpack(data)
+
+	def __str__(self):
+		return "Bits<%s, pos %#x>" % (self._data.hex(), self._pos)

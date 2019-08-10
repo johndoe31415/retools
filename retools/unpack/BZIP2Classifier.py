@@ -22,6 +22,7 @@
 import subprocess
 from retools.NamedStruct import NamedStruct
 from retools.unpack import Classifier, StdoutDecompressClassifier
+from retools.BitDecoder import BitDecoder
 
 @Classifier.register
 class BZIP2Classifier(StdoutDecompressClassifier):
@@ -43,7 +44,10 @@ class BZIP2Classifier(StdoutDecompressClassifier):
 		header = self._BZ2Header.unpack_from_file(input_file, start_offset)
 		if header.compressed_magic != b"1AY&SY":
 			return None
-		x = input_file.read(16)
-		print(x.hex())
-		print(header)
-		return None
+		return (start_offset, None)
+#		header_bits = BitDecoder(input_file.read(16))
+#		randomized = header_bits.get_bool()
+#		orig_ptr = header_bits.get_int(24)
+#		used_map = header_bits.get_int(16)
+#		print(randomized, orig_ptr, used_map)
+#		return None

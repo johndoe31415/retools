@@ -106,9 +106,15 @@ class StdoutDecompressClassifier(Classifier):
 	_COMMANDLINE = None
 
 	def extract(self, input_file, start_offset, file_length, destination):
+		print("Stdout decompress", hex(start_offset))
+		print(hex(input_file.tell()))
 		self._mkdir(os.path.dirname(destination))
 		with open(destination, "wb") as outfile:
-			process = subprocess.run(self._COMMANDLINE, stdout = outfile, stderr = subprocess.DEVNULL, stdin = input_file)
+			process = subprocess.Popen(self._COMMANDLINE, stdout = outfile, stderr = subprocess.DEVNULL, stdin = subprocess.PIPE)
+			try:
+				process.stdin.write(input_file.read())
+			except BrokenPipeError:
+				pass
 			success = process.returncode in self._SUCCESS_RETURNCODES
 			if self._args.verbose >= 3:
 				print("%s extraction (potential target %s) returned %s (status code %d)." % (self.name, destination, "successfully" if success else "unsuccessfully", process.returncode))
