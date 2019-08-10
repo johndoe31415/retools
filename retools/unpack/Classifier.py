@@ -92,14 +92,14 @@ class Classifier():
 	def scan(self, chunk):
 		"""Scans a chunk and yields all offsets that could be possible matches.
 		False positives are okay, but preliminary check needs to be fast."""
-		raise NotImplementedError()
+		raise NotImplementedError("%s does not implement scan() method" % (self.__class__.__name__))
 
 	def investigate(self, infile, offset):
 		"""Investivates a file offset that was previously yielded by scan() and a file."""
-		raise NotImplementedError()
+		raise NotImplementedError("%s does not implement investigate() method" % (self.__class__.__name__))
 
 	def extract(self, input_file, start_offset, file_length, destination):
-		raise NotImplementedError()
+		raise NotImplementedError("%s does not implement extract() method" % (self.__class__.__name__))
 
 class StdoutDecompressClassifier(Classifier):
 	_SUCCESS_RETURNCODES = [ 0 ]

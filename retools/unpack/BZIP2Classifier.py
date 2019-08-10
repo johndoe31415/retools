@@ -19,11 +19,31 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
+import subprocess
+from retools.NamedStruct import NamedStruct
+from retools.unpack import Classifier, StdoutDecompressClassifier
+
 @Classifier.register
 class BZIP2Classifier(StdoutDecompressClassifier):
 	_NAME = "bz2"
 	_COMMANDLINE = [ "bzcat", "--decompress" ]
+	_BZ2Header = NamedStruct((
+		("h",	"magic"),
+		("s",	"version"),
+		("s",	"blocksize"),
+		("6s",	"compressed_magic"),
+		("L",	"crc"),
+	))
 
 	def scan(self, chunk):
 		header = b"BZh"
 		yield from self._bytes_findall(chunk, header)
+
+	def investigate(self, input_file, start_offset):
+		header = self._BZ2Header.unpack_from_file(input_file, start_offset)
+		if header.compressed_magic != b"1AY&SY":
+			return None
+		x = input_file.read(16)
+		print(x.hex())
+		print(header)
+		return None

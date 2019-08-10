@@ -20,7 +20,6 @@
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
 import subprocess
-import gzip
 from retools.unpack import Classifier, StdoutDecompressClassifier
 
 @Classifier.register

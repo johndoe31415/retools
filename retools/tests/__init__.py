@@ -19,10 +19,4 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
-from retools.unpack.Classifier import Classifier, StdoutDecompressClassifier, TemporaryCarveClassifier, MultiFileExtractorClassifier
-import retools.unpack.PKZIPClassifier
-import retools.unpack.UBootClassifier
-import retools.unpack.SquashFSClassifier
-import retools.unpack.CramFSClassifier
-import retools.unpack.GZClassifier
-import retools.unpack.BZIP2Classifier
+from .BitDecoderTests import BitDecoderTests
