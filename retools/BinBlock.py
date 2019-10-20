@@ -30,6 +30,23 @@ class BinBlock():
 	def allbytes(cls, value, length):
 		return cls(data = (value for i in range(length)))
 
+	def _clone(self):
+		return BinBlock(self._data)
+
+	@property
+	def spcstring(self):
+		return " ".join("%02x" % (c) for c in self)
+
+	def __or__(self, other):
+		clone = self._clone()
+		clone |= other
+		return clone
+
+	def __and__(self, other):
+		clone = self._clone()
+		clone &= other
+		return clone
+
 	def __iand__(self, other):
 		assert(len(self) == len(other))
 		for (index, value) in enumerate(other):
@@ -41,6 +58,11 @@ class BinBlock():
 		for (index, value) in enumerate(other):
 			self._data[index] |= value
 		return self
+
+	def __invert__(self):
+		negblock = BinBlock()
+		negblock._data = bytearray((~value) & 0xff for value in self)
+		return negblock
 
 	def __getitem__(self, index):
 		return self._data[index]
