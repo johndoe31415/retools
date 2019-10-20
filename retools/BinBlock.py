@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 #	retools - Reverse engineering toolkit
 #	Copyright (C) 2019-2019 Johannes Bauer
 #
@@ -20,4 +19,34 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
-from .BinBlock import BinBlock
+class BinBlock():
+	def __init__(self, data = None):
+		if data is None:
+			self._data = bytearray()
+		else:
+			self._data = bytearray(data)
+
+	@classmethod
+	def allbytes(cls, value, length):
+		return cls(data = (value for i in range(length)))
+
+	def __iand__(self, other):
+		assert(len(self) == len(other))
+		for (index, value) in enumerate(other):
+			self._data[index] &= value
+		return self
+
+	def __ior__(self, other):
+		assert(len(self) == len(other))
+		for (index, value) in enumerate(other):
+			self._data[index] |= value
+		return self
+
+	def __getitem__(self, index):
+		return self._data[index]
+
+	def __len__(self):
+		return len(self._data)
+
+	def __repr__(self):
+		return "<%s>" % (self._data.hex())
