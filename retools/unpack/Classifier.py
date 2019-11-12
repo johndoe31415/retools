@@ -117,7 +117,7 @@ class StdoutDecompressClassifier(Classifier):
 				pass
 			success = process.returncode in self._SUCCESS_RETURNCODES
 			if self._args.verbose >= 3:
-				print("%s extraction (potential target %s) returned %s (status code %d)." % (self.name, destination, "successfully" if success else "unsuccessfully", process.returncode))
+				print("%s extraction (potential target %s) returned %s (status code %s)." % (self.name, destination, "successfully" if success else "unsuccessfully", process.returncode))
 			return success
 
 class TemporaryCarveClassifier(Classifier):
