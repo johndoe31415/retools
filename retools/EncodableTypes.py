@@ -19,14 +19,27 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
+import re
 import collections
+from .MultiRegex import MultiRegex, NoRegexMatchedException
 
 class EncodingException(ValueError): pass
 
 class EncodableTypes():
+	_KNOWN_ENCODING_PATTERNS = MultiRegex(collections.OrderedDict((
+		("int",		re.compile(r"(?P<sign>[us])int(?P<len>\d+)(-(?P<endian>[bl])e)?")),
+		("str",		re.compile(r"str(-(?P<encoding>[-a-zA-Z0-9]+))?")),
+		("float",	re.compile(r"float(?P<length>\d+)?(-(?P<endian>[bl])e)?")),
+	)))
+	_STR_ENCODING_ALIASES = {
+		"lat1":		"latin1",
+		"u16-be":	"utf-16-be",
+		"u16-le":	"utf-16-le",
+	}
+
 	@classmethod
 	def get_known_types(cls):
-		return cls._KNOWN_TYPES.keys()
+		return [ "[us]int-(len)-(endian)", "str-(encoding)" ]
 
 	@classmethod
 	def decode_int(cls, value):
@@ -62,35 +75,41 @@ class EncodableTypes():
 		return value.to_bytes(length = length, byteorder = "little" if little_endian else "big")
 
 	@classmethod
-	def encode_string(cls, value, char_encoding):
-		return value.encode(char_encoding)
+	def _match_int(cls, pattern, name, match):
+		sign = match["sign"] or "s"
+		length = int(match["len"])
+		endian = match["endian"] or "l"
+		if (length % 8) != 0:
+			raise EncodingException("Cannot encode '%s', bit length is not divisible by 8." % (pattern))
+		if length <= 0:
+			raise EncodingException("Cannot encode '%s', bit length must be at least 8." % (pattern))
+
+		little_endian = (endian == "l")
+		length_bytes = length // 8
+		if sign == "s":
+			return lambda value: cls.encode_sint(value, little_endian, length_bytes)
+		else:
+			return lambda value: cls.encode_uint(value, little_endian, length_bytes)
+
+	@classmethod
+	def _match_str(cls, pattern, name, match):
+		encoding = match["encoding"] or "utf-8"
+		encoding = cls._STR_ENCODING_ALIASES.get(encoding, encoding)
+		return lambda value: value.encode(encoding = encoding)
+
+	@classmethod
+	def _match_float(cls, pattern, name, match):
+		length = int(match["length"] or "32")
+		endian = match["endian"] or "l"
+		raise NotImplementedError("Float support not yet implemented")
 
 	@classmethod
 	def encode(cls, value, encode_as):
-		encoder = cls._KNOWN_TYPES[encode_as]
+		try:
+			encoder = cls._KNOWN_ENCODING_PATTERNS.fullmatch(encode_as, callback = cls, groupdict = True)
+		except NoRegexMatchedException:
+			raise EncodingException("Unknown encoding type '%s'." % (encode_as))
 		return encoder(value)
-
-
-	_KNOWN_TYPES = collections.OrderedDict([
-		("uint8",		lambda x: EncodableTypes.encode_uint(x, little_endian = True, length = 1)),
-		("uint16",		lambda x: EncodableTypes.encode_uint(x, little_endian = True, length = 2)),
-		("uint32",		lambda x: EncodableTypes.encode_uint(x, little_endian = True, length = 4)),
-		("uint64",		lambda x: EncodableTypes.encode_uint(x, little_endian = True, length = 8)),
-		("uint16-be",	lambda x: EncodableTypes.encode_uint(x, little_endian = False, length = 2)),
-		("uint32-be",	lambda x: EncodableTypes.encode_uint(x, little_endian = False, length = 4)),
-		("uint64-be",	lambda x: EncodableTypes.encode_uint(x, little_endian = False, length = 8)),
-		("sint8",		lambda x: EncodableTypes.encode_sint(x, little_endian = True, length = 1)),
-		("sint16",		lambda x: EncodableTypes.encode_sint(x, little_endian = True, length = 2)),
-		("sint32",		lambda x: EncodableTypes.encode_sint(x, little_endian = True, length = 4)),
-		("sint64",		lambda x: EncodableTypes.encode_sint(x, little_endian = True, length = 8)),
-		("sint16-be",	lambda x: EncodableTypes.encode_sint(x, little_endian = False, length = 2)),
-		("sint32-be",	lambda x: EncodableTypes.encode_sint(x, little_endian = False, length = 4)),
-		("sint64-be",	lambda x: EncodableTypes.encode_sint(x, little_endian = False, length = 8)),
-		("str",			lambda x: EncodableTypes.encode_string(x, encoding = "utf-8")),
-		("str-lat1",	lambda x: EncodableTypes.encode_string(x, encoding = "latin1")),
-		("str-u16-be",	lambda x: EncodableTypes.encode_string(x, encoding = "utf-16-be")),
-		("str-u16-le",	lambda x: EncodableTypes.encode_string(x, encoding = "utf-16-le")),
-	])
 
 if __name__ == "__main__":
 	assert(EncodableTypes.encode("1234", "uint16") == bytes.fromhex("d2 04"))
@@ -103,3 +122,5 @@ if __name__ == "__main__":
 	assert(EncodableTypes.encode("-2", "sint16") == bytes.fromhex("fe ff"))
 	assert(EncodableTypes.encode("1234", "str") == b"1234")
 	assert(EncodableTypes.encode("1234", "str-u16-le") == b"1\x002\x003\x004\x00")
+	assert(EncodableTypes.encode("12.34", "float32-le") == bytes.fromhex("a4 70 45 41"))
+	assert(EncodableTypes.encode("12.34", "float64-le") == bytes.fromhex("ae 47 e1 7a 14 ae 28 40"))

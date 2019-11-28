@@ -1,23 +1,27 @@
-#	retools - Reverse engineering toolkit
-#	Copyright (C) 2019-2019 Johannes Bauer
+#!/usr/bin/python3
 #
-#	This file is part of retools.
+#	NamedStruct - Python structure that has named member entries
+#	Copyright (C) 2017-2019 Johannes Bauer
 #
-#	retools is free software; you can redistribute it and/or modify
+#	This file is part of pycommon.
+#
+#	pycommon is free software; you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation; this program is ONLY licensed under
 #	version 3 of the License, later versions are explicitly excluded.
 #
-#	retools is distributed in the hope that it will be useful,
+#	pycommon is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with retools; if not, write to the Free Software
+#	along with pycommon; if not, write to the Free Software
 #	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
+#
+#	File UUID 34de558f-8b40-4899-a9d9-66e46d7d07a4
 
 import collections
 import struct
@@ -31,6 +35,10 @@ class NamedStruct(object):
 	@property
 	def size(self):
 		return self._struct.size
+
+	def pack(self, data):
+		fields = self._collection(**data)
+		return self._struct.pack(*fields)
 
 	def unpack(self, data):
 		values = self._struct.unpack(data)
