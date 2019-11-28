@@ -23,69 +23,66 @@
 import os
 import sys
 import collections
+import argparse
 from retools.FriendlyArgumentParser import FriendlyArgumentParser
 from retools.PreciseFloat import PreciseFloat
+from retools.FileSearch import FileSearch
+from retools.EncodableTypes import EncodableTypes, EncodingException
 
-#def to_hex(data):
-#	return " ".join("%02x" % (c) for c in data)
+class FileSearcher():
+	def __init__(self, args):
+		self._args = args
 
-parser = FriendlyArgumentParser()
-parser.add_argument("-r", "--recurse", action = "store_true", help = "Recurse into subdirectories.")
-parser.add_argument("-v", "--verbose", action = "count", default = 0, help = "Be more verbose. Can be specified multiple times.")
-parser.add_argument("pattern", metavar = "pattern", type = str, help = "Pattern that should be looked for.")
-parser.add_argument("filename", metavar = "filename(s)", nargs = "+", type = str, help = "File(s) that should be searched")
-args = parser.parse_args(sys.argv[1:])
-
-def execute_search_file(filename, pattern):
-	with open(filename, "rb") as f:
-		chunk_size = 1024 * 1024
-		while True:
-			f.seek(max(0, f.tell() - len(pattern.value)))
-			pos = f.tell()
-			chunk = f.read(chunk_size)
-
-			start_offset = 0
-			while True:
-				offset = chunk.find(pattern.value, start_offset)
-				if offset == -1:
-					break
-				start_offset = offset + 1
-				file_offset = pos + offset
-				print("%s 0x%x %d %s" % (filename, file_offset, file_offset, pattern.value))
-
-			if len(chunk) != chunk_size:
-				break
-
-def execute_search_dir(dirname, pattern, recurse):
-	for filename in os.listdir(dirname):
-		full_filename = dirname + "/" + filename
+	@classmethod
+	def pattern_argument(cls, arg):
 		try:
-			if os.path.isfile(full_filename):
-				execute_search_file(full_filename, pattern)
-			elif recurse and os.path.isdir(full_filename):
-				execute_search_dir(full_filename, pattern, recurse)
-		except PermissionError as e:
-			print("%s: %s" % (filename, str(e)), file = sys.stderr)
+			return EncodableTypes.encode_argument(arg)
+		except EncodingException as e:
+			raise argparse.ArgumentTypeError(str(e))
 
-def execute_search(filename, pattern, recurse):
-	if os.path.isfile(filename):
-		execute_search_file(filename, pattern)
-	elif os.path.isdir(filename):
-		execute_search_dir(filename, pattern, recurse)
+	@classmethod
+	def from_commandline(cls):
+		parser = FriendlyArgumentParser()
+		parser.add_argument("-c", "--context", metavar = "bytes", type = int, default = 32, help = "Display this amount of context around occurrences.")
+		parser.add_argument("-r", "--recurse", action = "store_true", help = "Recurse into subdirectories.")
+		parser.add_argument("-v", "--verbose", action = "count", default = 0, help = "Be more verbose. Can be specified multiple times.")
+		parser.add_argument("pattern", metavar = "pattern", type = cls.pattern_argument, help = "Pattern that should be looked for.")
+		parser.add_argument("filename", metavar = "filename(s)", nargs = "+", type = str, help = "File(s) that should be searched")
+		args = parser.parse_args(sys.argv[1:])
+		return cls(args = args)
 
-pattern = SearchPattern(args.pattern)
-if args.verbose >= 1:
-	for pattern_instance in pattern:
-		print("%-15s %s" % (pattern_instance.name, to_hex(pattern_instance.value)))
+	def _search_file(self, filename, pattern):
+		fs = FileSearch(filename, context_size = self._args.context)
+		for match in fs.find_all(pattern.value):
+			print("%s %x %s %s %s" % (filename, match.offset, match.pre.hex(), pattern.value.hex(), match.post.hex()))
 
-searched = set()
-for pattern_instance in pattern:
-	if pattern_instance.value in searched:
-		if args.verbose >= 2:
-			print("Skipped: %s (pattern already included)" % (pattern_instance.name))
-		continue
-	if args.verbose >= 2:
-		print("Searching: %s" % (pattern_instance.name))
-	for filename in args.filename:
-		execute_search(filename, pattern_instance, recurse = args.recurse)
-	searched.add(pattern_instance.value)
+	def _search_dir(self, dirname, pattern):
+		for filename in os.listdir(dirname):
+			full_filename = dirname + "/" + filename
+			try:
+				if os.path.isfile(full_filename):
+					self._search_file(full_filename, pattern)
+				elif self._args.recurse and os.path.isdir(full_filename):
+					self._search_dir(full_filename, pattern)
+			except PermissionError as e:
+				print("%s: %s" % (filename, str(e)), file = sys.stderr)
+
+	def _search(self, filename, pattern):
+		if os.path.isfile(filename):
+			self._search_file(filename, pattern)
+		elif os.path.isdir(filename):
+			self._search_dir(filename, pattern)
+
+	def run(self):
+		if self._args.verbose >= 1:
+			for pattern_instance in pattern:
+				print("%-15s %s" % (pattern_instance.name, to_hex(pattern_instance.value)))
+
+		for pattern in self._args.pattern:
+			if self._args.verbose >= 2:
+				print("Searching: %s" % (pattern.name))
+			for filename in self._args.filename:
+				self._search(filename, pattern)
+
+cmd = FileSearcher.from_commandline()
+cmd.run()

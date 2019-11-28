@@ -27,6 +27,8 @@ from .MultiRegex import MultiRegex, NoRegexMatchedException
 class EncodingException(ValueError): pass
 
 class EncodableTypes():
+	_EncodedType = collections.namedtuple("EncodedType", [ "name", "value" ])
+
 	_KNOWN_ENCODING_PATTERNS = MultiRegex(collections.OrderedDict((
 		("int",		re.compile(r"(?P<sign>[us])int(?P<len>\d+)(-(?P<endian>[bl])e)?")),
 		("str",		re.compile(r"str(-(?P<encoding>[-a-zA-Z0-9]+))?")),
@@ -121,6 +123,18 @@ class EncodableTypes():
 		except NoRegexMatchedException:
 			raise EncodingException("Unknown encoding type '%s'." % (encode_as))
 		return encoder(value)
+
+	@classmethod
+	def encode_argument(cls, argument):
+		encoding_value = argument.split(":", maxsplit = 1)
+		if len(encoding_value) != 2:
+			raise EncodingException("Cannot encode '%s', missing type/value." % (argument))
+		(encode_as, value) = encoding_value
+
+		# TODO: Add support for common encodings here. Such as strings where we
+		# don't want to guess the endianness, etc. Return multiple values.
+		return [ cls._EncodedType(name = encode_as, value = cls.encode(value, encode_as)) ]
+
 
 if __name__ == "__main__":
 	assert(EncodableTypes.encode("1234", "uint16") == bytes.fromhex("d2 04"))
