@@ -20,6 +20,7 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
+import os
 import sys
 import collections
 from retools.FriendlyArgumentParser import FriendlyArgumentParser
@@ -56,7 +57,21 @@ class SearchPattern(object):
 	def _parse_float(self, value):
 		value = PreciseFloat(value)
 		print(value)
-		yield "x"
+		raise NotImplementedError("TODO")
+
+	def _parse_str(self, value):
+		if value.startswith("latin1:"):
+			yield self.InstanciatedPattern(name = "str-latin1", value = value[7:].encode("latin1"))
+		elif value.startswith("utf8:"):
+			yield self.InstanciatedPattern(name = "str-utf8", value = value[5:].encode("utf-8"))
+		elif value.startswith("utf16-be:"):
+			yield self.InstanciatedPattern(name = "str-utf16-BE", value = value[9:].encode("utf-16-BE"))
+		elif value.startswith("utf16-le:"):
+			yield self.InstanciatedPattern(name = "str-utf16-LE", value = value[9:].encode("utf-16-LE"))
+		else:
+			# Return all of the above
+			for prefix in [ "latin1", "utf8", "utf16-be", "utf16-le" ]:
+				yield from self._parse_str(prefix + ":" + value)
 
 	def _parse_value(self, value):
 		yield from self._parse_int(value)
@@ -66,13 +81,62 @@ class SearchPattern(object):
 		return iter(self._values)
 
 parser = FriendlyArgumentParser()
+parser.add_argument("-r", "--recurse", action = "store_true", help = "Recurse into subdirectories.")
 parser.add_argument("-v", "--verbose", action = "count", default = 0, help = "Be more verbose. Can be specified multiple times.")
 parser.add_argument("pattern", metavar = "pattern", type = str, help = "Pattern that should be looked for.")
-parser.add_argument("filename", metavar = "filename(s)", type = str, help = "File(s) that should be searched")
+parser.add_argument("filename", metavar = "filename(s)", nargs = "+", type = str, help = "File(s) that should be searched")
 args = parser.parse_args(sys.argv[1:])
+
+def execute_search_file(filename, pattern):
+	with open(filename, "rb") as f:
+		chunk_size = 1024 * 1024
+		while True:
+			f.seek(max(0, f.tell() - len(pattern.value)))
+			pos = f.tell()
+			chunk = f.read(chunk_size)
+
+			start_offset = 0
+			while True:
+				offset = chunk.find(pattern.value, start_offset)
+				if offset == -1:
+					break
+				start_offset = offset + 1
+				file_offset = pos + offset
+				print("%s 0x%x %d %s" % (filename, file_offset, file_offset, pattern.value))
+
+			if len(chunk) != chunk_size:
+				break
+
+def execute_search_dir(dirname, pattern, recurse):
+	for filename in os.listdir(dirname):
+		full_filename = dirname + "/" + filename
+		try:
+			if os.path.isfile(full_filename):
+				execute_search_file(full_filename, pattern)
+			elif recurse and os.path.isdir(full_filename):
+				execute_search_dir(full_filename, pattern, recurse)
+		except PermissionError as e:
+			print("%s: %s" % (filename, str(e)), file = sys.stderr)
+
+def execute_search(filename, pattern, recurse):
+	if os.path.isfile(filename):
+		execute_search_file(filename, pattern)
+	elif os.path.isdir(filename):
+		execute_search_dir(filename, pattern, recurse)
 
 pattern = SearchPattern(args.pattern)
 if args.verbose >= 1:
 	for pattern_instance in pattern:
-		print("%-10s %s" % (pattern_instance.name, to_hex(pattern_instance.value)))
+		print("%-15s %s" % (pattern_instance.name, to_hex(pattern_instance.value)))
 
+searched = set()
+for pattern_instance in pattern:
+	if pattern_instance.value in searched:
+		if args.verbose >= 2:
+			print("Skipped: %s (pattern already included)" % (pattern_instance.name))
+		continue
+	if args.verbose >= 2:
+		print("Searching: %s" % (pattern_instance.name))
+	for filename in args.filename:
+		execute_search(filename, pattern_instance, recurse = args.recurse)
+	searched.add(pattern_instance.value)

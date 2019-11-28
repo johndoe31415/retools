@@ -82,4 +82,3 @@ if __name__ == "__main__":
 		precise = PreciseFloat(floatstr)
 		print("%-10s %-20s %e" % (floatstr, precise, float(precise)))
 		assert(abs(float(precise) - float(floatstr)) < 1e-6)
-

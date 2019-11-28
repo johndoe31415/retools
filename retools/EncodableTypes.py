@@ -62,8 +62,8 @@ class EncodableTypes():
 		return value.to_bytes(length = length, byteorder = "little" if little_endian else "big")
 
 	@classmethod
-	def encode_string(cls, value, encoding):
-		return value.encode(encoding)
+	def encode_string(cls, value, char_encoding):
+		return value.encode(char_encoding)
 
 	@classmethod
 	def encode(cls, value, encode_as):
