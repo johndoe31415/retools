@@ -20,6 +20,7 @@
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
 import re
+import base64
 import collections
 from .MultiRegex import MultiRegex, NoRegexMatchedException
 
@@ -30,6 +31,8 @@ class EncodableTypes():
 		("int",		re.compile(r"(?P<sign>[us])int(?P<len>\d+)(-(?P<endian>[bl])e)?")),
 		("str",		re.compile(r"str(-(?P<encoding>[-a-zA-Z0-9]+))?")),
 		("float",	re.compile(r"float(?P<length>\d+)?(-(?P<endian>[bl])e)?")),
+		("hex",		re.compile(r"hex")),
+		("base64",	re.compile(r"b(ase)?64")),
 	)))
 	_STR_ENCODING_ALIASES = {
 		"lat1":		"latin1",
@@ -104,6 +107,14 @@ class EncodableTypes():
 		raise NotImplementedError("Float support not yet implemented")
 
 	@classmethod
+	def _match_hex(cls, pattern, name, match):
+		return lambda value: bytes.fromhex(value)
+
+	@classmethod
+	def _match_base64(cls, pattern, name, match):
+		return lambda value: base64.b64decode(value)
+
+	@classmethod
 	def encode(cls, value, encode_as):
 		try:
 			encoder = cls._KNOWN_ENCODING_PATTERNS.fullmatch(encode_as, callback = cls, groupdict = True)
@@ -122,5 +133,7 @@ if __name__ == "__main__":
 	assert(EncodableTypes.encode("-2", "sint16") == bytes.fromhex("fe ff"))
 	assert(EncodableTypes.encode("1234", "str") == b"1234")
 	assert(EncodableTypes.encode("1234", "str-u16-le") == b"1\x002\x003\x004\x00")
+	assert(EncodableTypes.encode("aabbcc", "hex") == bytes.fromhex("aa bb cc"))
+	assert(EncodableTypes.encode("Zm9vYmFy", "b64") == b"foobar")
 	assert(EncodableTypes.encode("12.34", "float32-le") == bytes.fromhex("a4 70 45 41"))
 	assert(EncodableTypes.encode("12.34", "float64-le") == bytes.fromhex("ae 47 e1 7a 14 ae 28 40"))

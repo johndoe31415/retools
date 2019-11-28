@@ -26,59 +26,8 @@ import collections
 from retools.FriendlyArgumentParser import FriendlyArgumentParser
 from retools.PreciseFloat import PreciseFloat
 
-def to_hex(data):
-	return " ".join("%02x" % (c) for c in data)
-
-class SearchPattern(object):
-	InstanciatedPattern = collections.namedtuple("SearchPattern", [ "name", "value" ])
-
-	def __init__(self, expression):
-		if expression.startswith("val:"):
-			self._values = self._parse_value(expression[4:])
-		elif expression.startswith("int:"):
-			self._values = self._parse_int(expression[4:])
-		elif expression.startswith("float:"):
-			self._values = self._parse_float(expression[6:])
-		else:
-			self._values = self._parse_str(expression)
-		self._values = list(self._values)
-
-	def _parse_int(self, value):
-		value = int(value)
-		for length in [ 1, 2, 4, 8 ]:
-			if 0 <= value <= (256 ** length):
-				# uintX possible
-				if length == 1:
-					yield self.InstanciatedPattern(name = "uint%d" % (length * 8), value = value.to_bytes(byteorder = "little", length = length))
-				else:
-					yield self.InstanciatedPattern(name = "uint%d-LE" % (length * 8), value = value.to_bytes(byteorder = "little", length = length))
-					yield self.InstanciatedPattern(name = "uint%d-BE" % (length * 8), value = value.to_bytes(byteorder = "big", length = length))
-
-	def _parse_float(self, value):
-		value = PreciseFloat(value)
-		print(value)
-		raise NotImplementedError("TODO")
-
-	def _parse_str(self, value):
-		if value.startswith("latin1:"):
-			yield self.InstanciatedPattern(name = "str-latin1", value = value[7:].encode("latin1"))
-		elif value.startswith("utf8:"):
-			yield self.InstanciatedPattern(name = "str-utf8", value = value[5:].encode("utf-8"))
-		elif value.startswith("utf16-be:"):
-			yield self.InstanciatedPattern(name = "str-utf16-BE", value = value[9:].encode("utf-16-BE"))
-		elif value.startswith("utf16-le:"):
-			yield self.InstanciatedPattern(name = "str-utf16-LE", value = value[9:].encode("utf-16-LE"))
-		else:
-			# Return all of the above
-			for prefix in [ "latin1", "utf8", "utf16-be", "utf16-le" ]:
-				yield from self._parse_str(prefix + ":" + value)
-
-	def _parse_value(self, value):
-		yield from self._parse_int(value)
-		yield from self._parse_float(value)
-
-	def __iter__(self):
-		return iter(self._values)
+#def to_hex(data):
+#	return " ".join("%02x" % (c) for c in data)
 
 parser = FriendlyArgumentParser()
 parser.add_argument("-r", "--recurse", action = "store_true", help = "Recurse into subdirectories.")
