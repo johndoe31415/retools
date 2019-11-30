@@ -57,6 +57,12 @@ class EncodingTests(unittest.TestCase):
 		self.assertEqual(EncodableTypes.encode("1234", "str"), b"1234")
 		self.assertEqual(EncodableTypes.encode("Jöe", "str"), b"J\xc3\xb6e")
 
+		self.assertEqual(EncodableTypes.encode("1234", "str-latin1"), b"1234")
+		self.assertEqual(EncodableTypes.encode("Jöe", "str-latin1"), b"J\xf6e")
+
+		self.assertEqual(EncodableTypes.encode("1234", "str-u16-le"), bytes.fromhex("31 00 32 00 33 00 34 00"))
+		self.assertEqual(EncodableTypes.encode("1234", "str-u16-be"), bytes.fromhex("00 31 00 32 00 33 00 34"))
+
 	def test_b64(self):
 		self.assertEqual(EncodableTypes.encode("Zm9vYmFy", "b64"), b"foobar")
 
