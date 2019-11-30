@@ -20,3 +20,4 @@
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
 from .BitDecoderTests import BitDecoderTests
+from .EncodingTests import EncodingTests
