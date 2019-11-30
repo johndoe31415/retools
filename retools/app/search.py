@@ -28,10 +28,12 @@ from retools.FriendlyArgumentParser import FriendlyArgumentParser
 from retools.PreciseFloat import PreciseFloat
 from retools.FileSearch import FileSearch
 from retools.EncodableTypes import EncodableTypes, EncodingException
+from retools.HexDump import HexDump
 
 class FileSearcher():
 	def __init__(self, args):
 		self._args = args
+		self._hexdump = HexDump()
 
 	@classmethod
 	def pattern_argument(cls, arg):
@@ -43,6 +45,7 @@ class FileSearcher():
 	@classmethod
 	def from_commandline(cls):
 		parser = FriendlyArgumentParser()
+		parser.add_argument("-x", "--hex-dump", action = "store_true", help = "Show every occurrence as a hex dump.")
 		parser.add_argument("-c", "--context", metavar = "bytes", type = int, default = 32, help = "Display this amount of context around occurrences.")
 		parser.add_argument("-r", "--recurse", action = "store_true", help = "Recurse into subdirectories.")
 		parser.add_argument("-v", "--verbose", action = "count", default = 0, help = "Be more verbose. Can be specified multiple times.")
@@ -51,10 +54,17 @@ class FileSearcher():
 		args = parser.parse_args(sys.argv[1:])
 		return cls(args = args)
 
+	def _print_match(self, filename, pattern, match):
+		print("%s %x %s %s %s" % (filename, match.offset, match.pre.hex(), pattern.value.hex(), match.post.hex()))
+		if self._args.hex_dump:
+			data = match.pre + pattern.value + match.post
+			markers = { len(match.pre): ">" }
+			self._hexdump.dump(data, markers = markers)
+
 	def _search_file(self, filename, pattern):
 		fs = FileSearch(filename, context_size = self._args.context)
 		for match in fs.find_all(pattern.value):
-			print("%s %x %s %s %s" % (filename, match.offset, match.pre.hex(), pattern.value.hex(), match.post.hex()))
+			self._print_match(filename, pattern, match)
 
 	def _search_dir(self, dirname, pattern):
 		for filename in os.listdir(dirname):
