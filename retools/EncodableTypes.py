@@ -124,11 +124,11 @@ class EncodableTypes():
 
 	@classmethod
 	def _match_hex(cls, pattern, name, match):
-		return lambda value: bytes.fromhex(value)
+		yield cls._Encoder(name = name, encode = lambda value: bytes.fromhex(value))
 
 	@classmethod
 	def _match_base64(cls, pattern, name, match):
-		return lambda value: base64.b64decode(value)
+		yield cls._Encoder(name = name, encode = lambda value: base64.b64decode(value))
 
 	@classmethod
 	def encode(cls, value, encode_as):
