@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #	retools - Reverse engineering toolkit
-#	Copyright (C) 2019-2019 Johannes Bauer
+#	Copyright (C) 2019-2020 Johannes Bauer
 #
 #	This file is part of retools.
 #
@@ -38,7 +38,7 @@ class FileSearcher():
 	@classmethod
 	def pattern_argument(cls, arg):
 		try:
-			return EncodableTypes.encode_argument(arg)
+			return tuple(EncodableTypes.encode_argument(arg))
 		except EncodingException as e:
 			raise argparse.ArgumentTypeError(str(e))
 
@@ -49,7 +49,7 @@ class FileSearcher():
 		parser.add_argument("-c", "--context", metavar = "bytes", type = int, default = 32, help = "Display this amount of context around occurrences.")
 		parser.add_argument("-r", "--recurse", action = "store_true", help = "Recurse into subdirectories.")
 		parser.add_argument("-v", "--verbose", action = "count", default = 0, help = "Be more verbose. Can be specified multiple times.")
-		parser.add_argument("pattern", metavar = "pattern", type = cls.pattern_argument, help = "Pattern that should be looked for.")
+		parser.add_argument("pattern", metavar = "pattern", type = cls.pattern_argument, help = "Pattern that should be looked for. Can be something like 'str:foobar', 'str-utf16-be:foobar', 'str-*:foobar', 'uint16:1234', 'uint16-be:0xabcd', 'hex:123f', 'base64:AAAA'")
 		parser.add_argument("filename", metavar = "filename(s)", nargs = "+", type = str, help = "File(s) that should be searched")
 		args = parser.parse_args(sys.argv[1:])
 		return cls(args = args)
@@ -83,12 +83,20 @@ class FileSearcher():
 		elif os.path.isdir(filename):
 			self._search_dir(filename, pattern)
 
+	def _unique_pattern(self):
+		seen = set()
+		for pattern in self._args.pattern:
+			if pattern.value in seen:
+				continue
+			yield pattern
+			seen.add(pattern.value)
+
 	def run(self):
 		if self._args.verbose >= 1:
-			for pattern_instance in pattern:
-				print("%-15s %s" % (pattern_instance.name, to_hex(pattern_instance.value)))
+			for pattern_instance in self._unique_pattern():
+				print("%-15s %s" % (pattern_instance.name, pattern_instance.value.hex()))
 
-		for pattern in self._args.pattern:
+		for pattern in self._unique_pattern():
 			if self._args.verbose >= 2:
 				print("Searching: %s" % (pattern.name))
 			for filename in self._args.filename:

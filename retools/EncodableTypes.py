@@ -1,5 +1,5 @@
 #	retools - Reverse engineering toolkit
-#	Copyright (C) 2019-2019 Johannes Bauer
+#	Copyright (C) 2019-2020 Johannes Bauer
 #
 #	This file is part of retools.
 #
@@ -28,10 +28,11 @@ class EncodingException(ValueError): pass
 
 class EncodableTypes():
 	_EncodedType = collections.namedtuple("EncodedType", [ "name", "value" ])
+	_Encoder = collections.namedtuple("Encoder", [ "name", "encode" ])
 
 	_KNOWN_ENCODING_PATTERNS = MultiRegex(collections.OrderedDict((
-		("int",		re.compile(r"(?P<sign>[us])int(?P<len>\d+)(-(?P<endian>[bl])e)?")),
-		("str",		re.compile(r"str(-(?P<encoding>[-a-zA-Z0-9]+))?")),
+		("int",		re.compile(r"(?P<sign>[us])int(?P<len>\d+)(-(?P<endian>[bl?])e)?")),
+		("str",		re.compile(r"str(-(?P<encoding>[-a-zA-Z0-9*]+))?")),
 		("float",	re.compile(r"float(?P<length>\d+)?(-(?P<endian>[bl])e)?")),
 		("hex",		re.compile(r"hex")),
 		("base64",	re.compile(r"b(ase)?64")),
@@ -89,18 +90,31 @@ class EncodableTypes():
 		if length <= 0:
 			raise EncodingException("Cannot encode '%s', bit length must be at least 8." % (pattern))
 
-		little_endian = (endian == "l")
-		length_bytes = length // 8
-		if sign == "s":
-			return lambda value: cls.encode_sint(value, little_endian, length_bytes)
+		if endian in [ "b", "l" ]:
+			endian_chars = [ endian ]
 		else:
-			return lambda value: cls.encode_uint(value, little_endian, length_bytes)
+			endian_chars = [ "b", "l" ]
+
+		for endian_char in endian_chars:
+			little_endian = (endian_char == "l")
+			length_bytes = length // 8
+			if sign == "s":
+				encoder = lambda value: cls.encode_sint(value, little_endian, length_bytes)
+			else:
+				encoder = lambda value: cls.encode_uint(value, little_endian, length_bytes)
+			yield cls._Encoder(name = "%sint-%d-%se" % (sign, length, endian_char), encode = encoder)
 
 	@classmethod
 	def _match_str(cls, pattern, name, match):
 		encoding = match["encoding"] or "utf-8"
-		encoding = cls._STR_ENCODING_ALIASES.get(encoding, encoding)
-		return lambda value: value.encode(encoding = encoding)
+		if encoding == "*":
+			encodings = [ "utf-8", "utf-16-be", "utf-16-le", "latin1" ]
+		else:
+			encodings = [ cls._STR_ENCODING_ALIASES.get(encoding, encoding) ]
+
+		for encoding in encodings:
+			encoder = lambda value: value.encode(encoding = encoding)
+			yield cls._Encoder(name = "str-%s" % (encoding), encode = encoder)
 
 	@classmethod
 	def _match_float(cls, pattern, name, match):
@@ -119,10 +133,12 @@ class EncodableTypes():
 	@classmethod
 	def encode(cls, value, encode_as):
 		try:
-			encoder = cls._KNOWN_ENCODING_PATTERNS.fullmatch(encode_as, callback = cls, groupdict = True)
+			encoders = cls._KNOWN_ENCODING_PATTERNS.fullmatch(encode_as, callback = cls, groupdict = True)
 		except NoRegexMatchedException:
 			raise EncodingException("Unknown encoding type '%s'." % (encode_as))
-		return encoder(value)
+		for encoder in encoders:
+			encoded_data = encoder.encode(value)
+			yield cls._EncodedType(name = encoder.name, value = encoded_data)
 
 	@classmethod
 	def encode_argument(cls, argument):
@@ -130,11 +146,7 @@ class EncodableTypes():
 		if len(encoding_value) != 2:
 			raise EncodingException("Cannot encode '%s', missing type/value." % (argument))
 		(encode_as, value) = encoding_value
-
-		# TODO: Add support for common encodings here. Such as strings where we
-		# don't want to guess the endianness, etc. Return multiple values.
-		return [ cls._EncodedType(name = encode_as, value = cls.encode(value, encode_as)) ]
-
+		return cls.encode(value = value, encode_as = encode_as)
 
 if __name__ == "__main__":
 	assert(EncodableTypes.encode("1234", "uint16") == bytes.fromhex("d2 04"))

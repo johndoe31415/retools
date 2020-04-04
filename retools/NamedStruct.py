@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 #	NamedStruct - Python structure that has named member entries
-#	Copyright (C) 2017-2019 Johannes Bauer
+#	Copyright (C) 2017-2020 Johannes Bauer
 #
 #	This file is part of pycommon.
 #

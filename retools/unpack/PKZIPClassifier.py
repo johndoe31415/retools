@@ -1,5 +1,5 @@
 #	retools - Reverse engineering toolkit
-#	Copyright (C) 2019-2019 Johannes Bauer
+#	Copyright (C) 2019-2020 Johannes Bauer
 #
 #	This file is part of retools.
 #
@@ -58,7 +58,10 @@ class PKZIPClassifier(MultiFileExtractorClassifier):
 		file_end_offset = offset + 0x16 + eocd.comment_length
 
 		cd_offset = offset - eocd.central_directory_size
+		if cd_offset < 0:
+			return None
 		cd = self._CentralDirectory.unpack_from_file(infile, cd_offset)
+
 		if cd.signature != 0x2014b50:
 			# CD does not precede EOCD
 			return None
