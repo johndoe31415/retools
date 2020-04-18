@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #	retools - Reverse engineering toolkit
-#	Copyright (C) 2019-2019 Johannes Bauer
+#	Copyright (C) 2019-2020 Johannes Bauer
 #
 #	This file is part of retools.
 #
@@ -39,7 +39,7 @@ for (filename, pattern) in zip(args.filename_pattern[::2], args.filename_pattern
 	try:
 		if ":" in pattern:
 			(ptype, pvalue) = pattern.split(":", maxsplit = 1)
-			bin_pattern = EncodableTypes.encode(pvalue, ptype)
+			bin_pattern = list(EncodableTypes.encode(pvalue, ptype))[0].value
 		else:
 			bin_pattern = bytes.fromhex(pattern)
 	except ValueError as e:
@@ -49,7 +49,6 @@ for (filename, pattern) in zip(args.filename_pattern[::2], args.filename_pattern
 		print("%20s: %s" % (filename, bin_pattern.hex()))
 
 	parsed_patterns.append((filename, bin_pattern))
-
 
 def findall(haystack, needle):
 	occurrences = set()
