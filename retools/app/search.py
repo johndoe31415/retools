@@ -50,7 +50,7 @@ class FileSearcher():
 		parser.add_argument("-c", "--context", metavar = "bytes", type = int, default = 32, help = "Display this amount of context around occurrences.")
 		parser.add_argument("-r", "--recurse", action = "store_true", help = "Recurse into subdirectories.")
 		parser.add_argument("-v", "--verbose", action = "count", default = 0, help = "Be more verbose. Can be specified multiple times.")
-		parser.add_argument("pattern", metavar = "pattern", type = cls.pattern_argument, help = "Pattern that should be looked for. Can be something like 'str:foobar', 'str-utf16-be:foobar', 'str-*:foobar', 'uint16:1234', 'uint16-be:0xabcd', 'hex:123f', 'base64:AAAA'")
+		parser.add_argument("pattern", metavar = "pattern", type = cls.pattern_argument, help = "Pattern that should be looked for. Can be something like 'str:foobar', 'str-utf16-be:foobar', 'str-*:foobar', 'uint16:1234', 'uint16-be:0xabcd', 'hex:123f', 'base64:AAAA', 'ip:12.34.56.78'")
 		parser.add_argument("filename", metavar = "filename", nargs = "+", type = str, help = "File(s) that should be searched")
 		args = parser.parse_args(sys.argv[1:])
 		return cls(args = args)
