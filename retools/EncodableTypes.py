@@ -36,6 +36,7 @@ class EncodableTypes():
 		("float",	re.compile(r"float(?P<length>\d+)?(-(?P<endian>[bl])e)?")),
 		("hex",		re.compile(r"hex")),
 		("base64",	re.compile(r"b(ase)?64")),
+		("ip",		re.compile(r"ip")),
 	)))
 	_STR_ENCODING_ALIASES = {
 		"lat1":		"latin1",
@@ -121,6 +122,35 @@ class EncodableTypes():
 		length = int(match["length"] or "32")
 		endian = match["endian"] or "l"
 		raise NotImplementedError("Float support not yet implemented")
+
+	@classmethod
+	def _match_ip(cls, pattern, name, match):
+		__ipv4_re = re.compile(r"(?P<a1>\d{1,3})\.(?P<a2>\d{1,3})\.(?P<a3>\d{1,3})\.(?P<a4>\d{1,3})")
+		def _parse_ip(ip_str):
+			match = __ipv4_re.fullmatch(ip_str)
+			if not match:
+				raise ValueError("Not a valid value for an IPv4 address: %s" % (ip_str))
+			match = match.groupdict()
+			match = { name: int(value) for (name, value) in match.items() }
+			if not all(0 <= value <= 255 for value in match.values()):
+				raise ValueError("Not a valid value for an IPv4 address: %s" % (ip_str))
+			return (match["a1"], match["a2"], match["a3"], match["a4"])
+
+		def _encode_ip_str(ip_str):
+			ip = _parse_ip(ip_str)
+			return ("%d.%d.%d.%d" % (ip[0], ip[1], ip[2], ip[3])).encode("ascii")
+
+		def _encode_ip_be_int(ip_str):
+			ip = _parse_ip(ip_str)
+			return bytes(ip)
+
+		def _encode_ip_le_int(ip_str):
+			ip = _parse_ip(ip_str)
+			return bytes(reversed(ip))
+
+		yield cls._Encoder(name = "ipv4-str", encode = _encode_ip_str)
+		yield cls._Encoder(name = "ipv4-be", encode = _encode_ip_be_int)
+		yield cls._Encoder(name = "ipv4-le", encode = _encode_ip_le_int)
 
 	@classmethod
 	def _match_hex(cls, pattern, name, match):

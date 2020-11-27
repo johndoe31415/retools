@@ -24,6 +24,7 @@ import os
 import sys
 import collections
 import argparse
+import io
 from retools.FriendlyArgumentParser import FriendlyArgumentParser
 from retools.PreciseFloat import PreciseFloat
 from retools.FileSearch import FileSearch
@@ -50,7 +51,7 @@ class FileSearcher():
 		parser.add_argument("-r", "--recurse", action = "store_true", help = "Recurse into subdirectories.")
 		parser.add_argument("-v", "--verbose", action = "count", default = 0, help = "Be more verbose. Can be specified multiple times.")
 		parser.add_argument("pattern", metavar = "pattern", type = cls.pattern_argument, help = "Pattern that should be looked for. Can be something like 'str:foobar', 'str-utf16-be:foobar', 'str-*:foobar', 'uint16:1234', 'uint16-be:0xabcd', 'hex:123f', 'base64:AAAA'")
-		parser.add_argument("filename", metavar = "filename(s)", nargs = "+", type = str, help = "File(s) that should be searched")
+		parser.add_argument("filename", metavar = "filename", nargs = "+", type = str, help = "File(s) that should be searched")
 		args = parser.parse_args(sys.argv[1:])
 		return cls(args = args)
 
@@ -62,6 +63,8 @@ class FileSearcher():
 			self._hexdump.dump(data, markers = markers)
 
 	def _search_file(self, filename, pattern):
+		if self._args.verbose >= 3:
+			print("Searching: %s" % (filename))
 		fs = FileSearch(filename, context_size = self._args.context)
 		for match in fs.find_all(pattern.value):
 			self._print_match(filename, pattern, match)
@@ -70,11 +73,13 @@ class FileSearcher():
 		for filename in os.listdir(dirname):
 			full_filename = dirname + "/" + filename
 			try:
-				if os.path.isfile(full_filename):
+				if os.path.islink(full_filename):
+					continue
+				elif os.path.isfile(full_filename):
 					self._search_file(full_filename, pattern)
 				elif self._args.recurse and os.path.isdir(full_filename):
 					self._search_dir(full_filename, pattern)
-			except PermissionError as e:
+			except (PermissionError, io.UnsupportedOperation) as e:
 				print("%s: %s" % (filename, str(e)), file = sys.stderr)
 
 	def _search(self, filename, pattern):
