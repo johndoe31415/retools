@@ -1,5 +1,5 @@
 #	retools - Reverse engineering toolkit
-#	Copyright (C) 2019-2020 Johannes Bauer
+#	Copyright (C) 2020-2020 Johannes Bauer
 #
 #	This file is part of retools.
 #
@@ -19,11 +19,26 @@
 #
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
-from retools.unpack.Classifier import Classifier, StdoutDecompressClassifier, TemporaryCarveClassifier, MultiFileExtractorClassifier
-import retools.unpack.PKZIPClassifier
-import retools.unpack.UBootClassifier
-import retools.unpack.SquashFSClassifier
-import retools.unpack.CramFSClassifier
-import retools.unpack.GZClassifier
-import retools.unpack.BZIP2Classifier
-import retools.unpack.DexClassifier
+import subprocess
+from retools.unpack import Classifier, TemporaryCarveClassifier
+
+@Classifier.register
+class DexClassifier(TemporaryCarveClassifier):
+	_NAME = "dex"
+	_SUFFIX = ".dex"
+
+	def scan(self, chunk):
+		header = b"dex\n"
+		yield from self._bytes_findall(chunk, header)
+
+	def investigate(self, infile, offset):
+		infile.seek(offset + 4)
+		version = infile.read(3)
+		version = version.decode("latin1")
+		if version.isdigit():
+			infile.seek(offset + 0x20)
+			length = int.from_bytes(infile.read(4), byteorder = "little")
+			return (offset, length)
+
+	def extract_from_temporary_carved_file(self, temp_filename, destination):
+		subprocess.check_call([ "dex2jar", "-o", destination, temp_filename ])

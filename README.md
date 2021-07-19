@@ -1,5 +1,5 @@
 # retools
-[![Build Status](https://travis-ci.org/johndoe31415/retools.svg?branch=master)](https://travis-ci.org/johndoe31415/retools)
+[![Build Status](https://travis-ci.com/johndoe31415/retools.svg?branch=master)](https://travis-ci.com/johndoe31415/retools)
 
 When doing reverse engineering, I find myself coding and re-coding the same
 tools over and over again. For a task at hand I now want to consolidate and

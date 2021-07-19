@@ -1,5 +1,5 @@
 #	retools - Reverse engineering toolkit
-#	Copyright (C) 2019-2019 Johannes Bauer
+#	Copyright (C) 2019-2020 Johannes Bauer
 #
 #	This file is part of retools.
 #
@@ -124,7 +124,7 @@ class TemporaryCarveClassifier(Classifier):
 	_SUFFIX = None
 
 	def extract_from_temporary_carved_file(self, temp_filename, destination):
-		raise NotImplementedError()
+		raise NotImplementedError(self.__class__.__name__)
 
 	def extract(self, input_file, start_offset, file_length, destination):
 		self._mkdir(destination)
